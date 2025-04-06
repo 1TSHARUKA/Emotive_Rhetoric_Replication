@@ -11,7 +11,7 @@ This replication builds upon the original dataset from the *“Playing to the Ga
       Harvard Dataverse
     </a>
   as specified by the authors.
-* Additionally, all files used in this <code>replication—uk_data</code>, the extended version <code>uk_data_clean</code>, and <code>corpus.txt</code> used for Word2Vec training—are hosted on     <a href="https://drive.google.com/drive/folders/1l8mttWYBo1k-GKExBtYCS9ogwWZ5ZTyF?dmr=1&ec=wgc-drive-hero-goto" target="_blank">
+* Additionally, all files used in this replication—<code>uk_data</code>, the extended version <code>uk_data_clean</code>, and <code>corpus.txt</code> used for Word2Vec training—are hosted on     <a href="https://drive.google.com/drive/folders/1l8mttWYBo1k-GKExBtYCS9ogwWZ5ZTyF?dmr=1&ec=wgc-drive-hero-goto" target="_blank">
       Google Drive
     </a>
  for convenience. These include preprocessed text, learned embeddings, and model outputs.
