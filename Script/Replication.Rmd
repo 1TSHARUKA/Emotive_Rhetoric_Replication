@@ -1,0 +1,843 @@
+---
+title: "Replication2"
+author: "Tian Tong"
+date: "2025-03-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytext)
+library(stringr)
+```
+
+## Load the data
+
+```{r, warning=FALSE, message=FALSE}
+uk_data <- read_csv("uk_data.csv")
+```
+
+### Clean speeches: preprocessing
+
+```{r}
+uk_data_clean <- uk_data %>%
+  filter(!is.na(text), str_trim(text) != "") %>%
+  mutate(
+    word_count = str_count(text, "\\S+"),
+    speech_clean = text %>%
+      str_to_lower() %>%
+      str_replace_all("[^a-z\\s]", "") %>%
+      str_squish()
+  ) %>%
+  filter(word_count >= 10)
+```
+
+```{r}
+# Preview cleaned data
+uk_data_clean %>% select(id_speech, text, speech_clean, word_count) %>% head()
+```
+
+## Extension: Create a domain-specific emotive/neutral dictionary of our own
+
+```{r}
+library(data.table)
+library(text2vec)
+library(stringr)
+library(dplyr)
+library(readr)
+```
+
+### Prepare the corpus
+
+```{r}
+# Use cleaned speech column
+corpus <- uk_data_clean$speech_clean
+
+# Create a text iterator for tokenization
+tokens <- itoken(corpus, 
+                 tokenizer = word_tokenizer, 
+                 progressbar = TRUE)
+```
+
+```{r}
+# Build vocabulary and remove very rare words
+vocab <- create_vocabulary(tokens) %>%
+  prune_vocabulary(term_count_min = 8)
+
+# Vectorizer
+vectorizer <- vocab_vectorizer(vocab)
+```
+
+### Train the Word2Vec Model(to highlight this in presentation)
+
+```{r}
+w2v_model <- word2vec::word2vec(
+  x = sample(corpus, 100000),  # 100K speeches instead of all
+  type = "skip-gram", # other types
+  dim = 100,
+  window = 5,
+  iter = 3,
+  min_count = 5,
+  threads = 4
+)
+```
+
+As we could not **easily extract the word vectors** afterward using the CRAN version of `word2vec`, which limits the ability to compute cosine similarity.
+
+```{r}
+library(wordVectors)
+
+# Save the cleaned speeches to a text file
+writeLines(corpus, "corpus.txt")
+```
+
+```{r}
+train_word2vec(
+  train_file = "corpus.txt",
+  output_file = "vectors.bin",
+  vectors = 100,      # embedding dimension
+  threads = 4,        
+  window = 5,         # context window
+  iter = 3,           # number of passes
+  min_count = 8,      # ignore rare words
+  force = TRUE        # overwrite if file exists
+)
+```
+
+### Expand the dictionary
+
+```{r}
+model <- read.vectors("vectors.bin")
+```
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+
+nrc <- read_delim("NRC-Emotion-Lexicon/NRC-Emotion-Lexicon-Wordlevel-v0.92.txt",
+                  delim = "\t", col_names = c("word", "emotion", "value"))
+```
+
+### Extract emotive and neutral seed words
+
+```{r}
+# Get emotive words (only keep those with value = 1 in emotion categories)
+emotive_emotions <- c("anger", "fear", "joy", "disgust", "sadness", "trust", "surprise", "anticipation")
+
+emotive_seeds <- nrc %>%
+  filter(emotion %in% emotive_emotions, value == 1) %>%
+  distinct(word) %>%
+  pull(word)
+
+# Get sentiment labels (positive/negative only)
+sentiment_wide <- nrc %>%
+  filter(emotion %in% c("positive", "negative")) %>%
+  pivot_wider(names_from = emotion, values_from = value, values_fill = 0)
+
+# Neutral words = words with both pos & neg == 0
+neutral_seeds <- sentiment_wide %>%
+  filter(positive == 0 & negative == 0) %>%
+  pull(word)
+```
+
+### Keep only words that exist in model
+
+```{r}
+emotive_seeds <- emotive_seeds[emotive_seeds %in% rownames(model)]
+neutral_seeds <- neutral_seeds[neutral_seeds %in% rownames(model)]
+```
+
+### Compute cosine similarity scores
+
+```{r}
+cosine_sim <- function(x, y) {
+  x <- x / sqrt(sum(x^2))
+  y <- y / sqrt(sum(y^2))
+  sum(x * y)
+}
+
+# Compute average vector for each group
+emotive_center <- colMeans(model[emotive_seeds, , drop = FALSE])
+neutral_center <- colMeans(model[neutral_seeds, , drop = FALSE])
+
+# Score every word in the model
+words <- rownames(model)
+scores <- sapply(words, function(w) {
+  vec <- model[w, , drop = FALSE]
+  cosine_sim(vec, emotive_center) - cosine_sim(vec, neutral_center)
+})
+
+# Combine into a dataframe
+dictionary <- data.frame(
+  word = words,
+  score = scores
+)
+```
+
+### Build emotive and neutral expanded lists
+
+```{r}
+library(dplyr)
+
+top_pct <- 0.04  # Top/bottom 2.5%
+n <- nrow(dictionary)
+cutoff <- ceiling(n * top_pct)
+
+emotive_expanded <- dictionary %>%
+  arrange(desc(score)) %>%
+  slice(1:cutoff)
+
+neutral_expanded <- dictionary %>%
+  arrange(score) %>%
+  slice(1:cutoff)
+
+# Save
+write.csv(emotive_expanded, "emotive_expanded.csv", row.names = FALSE)
+write.csv(neutral_expanded, "neutral_expanded.csv", row.names = FALSE)
+```
+
+
+```{r}
+length(emotive_expanded$word)   # Number of emotive words
+length(neutral_expanded$word)   # Number of neutral words
+```
+
+
+## Score each speech using the expanded dictionary
+
+```{r}
+library(tokenizers)
+
+# Tokenize cleaned speech into word lists
+speech_tokens <- tokenize_words(uk_data_clean$speech_clean, lowercase = TRUE)
+```
+
+```{r}
+str(speech_tokens[[1]])
+#test
+```
+
+```{r}
+library(stringr)
+
+# Convert dictionary words to sets
+emotive_set <- emotive_expanded$word
+neutral_set <- neutral_expanded$word
+
+# Score each speech
+speech_scores <- sapply(speech_tokens, function(tokens) {
+  tokens <- tokens[tokens %in% rownames(model)]
+  total <- length(tokens)
+  if (total == 0) return(NA)
+
+  n_emotive <- sum(tokens %in% emotive_set)
+  n_neutral <- sum(tokens %in% neutral_set)
+  
+  score <- (n_emotive - n_neutral) / total
+  return(score)
+})
+```
+
+```{r}
+library(wordVectors)
+
+# Example words
+emotive_example <- c("evil", "good", "respect", "appreciate", "commend")
+neutral_example <- c("megabits", "infrastructure", "copper", "wires", "superfast", "fibre")
+
+# Filter to keep only words found in the Word2Vec model
+emotive_filtered <- emotive_example[emotive_example %in% rownames(model)]
+neutral_filtered <- neutral_example[neutral_example %in% rownames(model)]
+
+# Load emotive and neutral word sets from your dictionary
+emotive_set <- emotive_expanded$word
+neutral_set <- neutral_expanded$word
+
+# Function to score a speech vector based on word matches
+score_speech <- function(tokens, emotive_set, neutral_set) {
+  tokens <- tokens[tokens %in% rownames(model)]
+  total <- length(tokens)
+  if (total == 0) return(NA)
+  
+  n_emotive <- sum(tokens %in% emotive_set)
+  n_neutral <- sum(tokens %in% neutral_set)
+  
+  # Unscaled raw score
+  score <- (n_emotive - n_neutral) / total
+  return(score)
+}
+
+# Get scores
+emotive_score <- score_speech(emotive_filtered, emotive_set, neutral_set)
+neutral_score <- score_speech(neutral_filtered, emotive_set, neutral_set)
+
+# Optional: Rescale like in original article (e.g., ×100 for visibility)
+emotive_score_scaled <- round(emotive_score * 100, 2)
+neutral_score_scaled <- round(neutral_score * 100, 2)
+
+# Output
+cat("Emotive Example Score:", emotive_score_scaled, "\n")
+cat("Neutral Example Score:", neutral_score_scaled, "\n")
+```
+
+Example 1: Evil happens when good people stand by and do nothing. There is evil running through and infiltrating the Labour party, but it is full of good people and they are trying to do something about it. I commend them, appreciate them and have nothing but respect for them.
+
+**Emotive Example Score: 20**
+
+-   This suggests a **strong emotional tone**, as 4 out of 5 tokens (`evil`, `good`, `respect`, `appreciate`, `commend`) were matched to emotive words from your expanded dictionary.
+
+Example 2: When used with old-fashioned copper wires, 10 megabits can become a lot less than that. We need a superfast fibre infrastructure instead of copper wires.
+
+**Neutral Example Score: -16.67**
+
+-   This suggests a **low or even negatively emotional tone**, likely due to a higher share of neutral or unrecognized words. This mirrors the original article's classification of the second quote as "neutral".
+
+## Main Replication
+
+```{r}
+# Attach scores to dataset
+uk_data_clean$emotive_score <- speech_scores
+```
+
+```{r}
+colnames(uk_data_clean)
+```
+
+### Replication Regression
+
+#### Baseline model:
+
+```{r}
+# Table 3: Column (1)
+model_table3_col1 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions,
+  data = uk_data_clean
+)
+
+summary(model_table3_col1)
+```
+```{r}
+# Recreate 'time' variable based on date if it doesn't already exist
+if (is.null(uk_data_clean$time)) {
+  uk_data_clean$time <- NA
+  years <- 2001:2019
+  for (y in years) {
+    uk_data_clean$time[uk_data_clean$date >= as.Date(paste0(y, "-01-01")) &
+                         uk_data_clean$date <= as.Date(paste0(y, "-06-30"))] <- paste0(substr(y, 3, 4), "/1")
+    uk_data_clean$time[uk_data_clean$date >= as.Date(paste0(y, "-07-01")) &
+                         uk_data_clean$date <= as.Date(paste0(y, "-12-31"))] <- paste0(substr(y, 3, 4), "/2")
+  }
+}
+
+# Now create time_index
+uk_data_clean$time_index <- as.numeric(as.factor(uk_data_clean$time))
+```
+
+#### Add linear time trend
+
+```{r}
+model_table3_col2 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions + time_index,
+  data = uk_data_clean
+)
+
+summary(model_table3_col2)
+```
+
+#### Add MP fixed effectes
+
+```{r}
+colnames(uk_data_clean)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(fixest)
+
+model_fixest <- feols(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions | id_mp,
+  data = uk_data_clean
+)
+summary(model_fixest)
+```
+
+#### Add party, government, prime_minister, cabinet
+
+```{r}
+model_table3_col4 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions +
+    party + government + prime_minister + cabinet,
+  data = uk_data_clean
+)
+
+summary(model_table3_col4)
+```
+
+#### Add weighting by word count
+
+```{r}
+model_table3_col5 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions,
+  data = uk_data_clean,
+  weights = word_count
+)
+
+summary(model_table3_col5)
+```
+
+### Regression analysis of Fixed Topic Effects
+
+```{r}
+# Table 4: Column (1) — with topic fixed effects
+model_table4_col1 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions + 
+    factor(top_topic),
+  data = uk_data_clean
+)
+
+summary(model_table4_col1)
+```
+
+#### Add linear time trend
+
+```{r}
+# Model with time trend + topic fixed effects
+model_table4_col2 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions + 
+    time_index +  factor(top_topic),
+  data = uk_data_clean
+)
+
+summary(model_table4_col2)
+```
+
+#### Add MP fixed effect
+
+```{r}
+model_table4_col3 <- feols(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions | id_mp + factor(top_topic),
+  data = uk_data_clean
+)
+summary(model_table4_col3)
+```
+
+#### Add party
+
+```{r}
+model_table4_col4 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions +
+    party + government + prime_minister + cabinet + factor(top_topic),
+  data = uk_data_clean
+)
+
+summary(model_table4_col4)
+```
+
+#### Add weighting by word count
+
+```{r}
+model_table4_col5 <- lm(
+  emotive_score ~ pm_questions + queen_debate_day1 + 
+    queen_debate_others + m_questions + u_questions + factor(top_topic),
+  data = uk_data_clean,
+  weights = word_count
+)
+
+summary(model_table4_col5)
+```
+
+Full model analysis with variables:
+
+-   Prime Minister's Questions
+
+-   Day 1 of Queen's Speech Debate
+
+-   Other days of Queen's Speech Debate
+
+-   Ministerial Questions
+
+-   Urgent Questions
+
+-   Other Parliamentary Debate types
+
+```{r}
+model1 <- lm(emotive_score ~ government + party + prime_minister + cabinet +
+               pm_questions + queen_debate_day1 + queen_debate_others +
+               m_questions + u_questions + other_debate +
+               top_topic,
+             data = uk_data_clean)
+
+summary(model1)
+```
+
+Exntension plot
+
+```{r, fig.width=12, fig.height=6}
+library(ggplot2)
+uk_data_clean$pred <- predict(model1)
+
+ggplot(uk_data_clean, aes(x = party, y = pred)) +
+  stat_summary(fun = mean, geom = "col", fill = "steelblue") +
+  labs(title = "Predicted Emotive Rhetoric by Party", y = "Predicted Score")
+```
+
+Use similar code to generate Fig.2 in original paper
+
+Plot
+
+```{r, fig.width=12, fig.height=6}
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(plyr)
+
+# STEP 1: Create the time variable
+uk_data_clean$time <- NA
+uk_data_clean$date <- as.Date(uk_data_clean$date)  # ensure date format
+
+years <- 2001:2019
+for (y in years) {
+  uk_data_clean$time[uk_data_clean$date >= as.Date(paste0(y, "-01-01")) &
+                      uk_data_clean$date <= as.Date(paste0(y, "-06-30"))] <- paste0(substr(y, 3, 4), "/1")
+  uk_data_clean$time[uk_data_clean$date >= as.Date(paste0(y, "-07-01")) &
+                      uk_data_clean$date <= as.Date(paste0(y, "-12-31"))] <- paste0(substr(y, 3, 4), "/2")
+}
+
+# STEP 2: Create the stage variable
+uk_data_clean$stage <- 0
+uk_data_clean$stage[uk_data_clean$m_questions == 1] <- 1
+uk_data_clean$stage[uk_data_clean$u_questions == 1] <- 2
+uk_data_clean$stage[uk_data_clean$queen_debate_others == 1] <- 3
+uk_data_clean$stage[uk_data_clean$queen_debate_day1 == 1] <- 4
+uk_data_clean$stage[uk_data_clean$pm_questions == 1] <- 5
+
+# STEP 3: Compute means by time and stage
+calc_mean <- function(x){
+  mean_emotive <- mean(x$emotive_score, na.rm = TRUE)
+  cbind(mean_emotive)
+}
+
+result_clean <- ddply(uk_data_clean, c("time", "stage"), calc_mean)
+colnames(result_clean) <- c("time", "stage", "emotive_rhetoric")
+
+# STEP 4: Add debate type labels
+result_clean$type <- NA
+result_clean$type[result_clean$stage == 5] <- "PM's Question Time"
+result_clean$type[result_clean$stage == 4] <- "Queen's Speech Debate: Opening Day"
+result_clean$type[result_clean$stage == 3] <- "Queen's Speech Debate: Other Days"
+result_clean$type[result_clean$stage == 2] <- "Urgent Questions"
+result_clean$type[result_clean$stage == 1] <- "Other Question Time"
+result_clean$type[result_clean$stage == 0] <- "Other"
+
+result_clean$type <- factor(result_clean$type, levels = c("PM's Question Time",
+                                                          "Queen's Speech Debate: Opening Day",
+                                                          "Queen's Speech Debate: Other Days",
+                                                          "Urgent Questions",
+                                                          "Other Question Time",
+                                                          "Other"))
+
+# Optional: drop 01/1 to match original article
+result_clean <- subset(result_clean, time != "01/1")
+
+# STEP 5: Plot
+fig2_clean <- ggplot(result_clean, aes(x = time, y = emotive_rhetoric, group = type)) +
+  geom_line(aes(color = type, linetype = type), linewidth = 0.6) +
+  geom_point(color = "black", size = 1.2) +
+  xlab("Time (Half-Year)") +
+  ylab("Mean Emotive Rhetoric Score") +
+  ggtitle("Emotive Rhetoric by Type of Debate over Time") +
+  geom_vline(xintercept = 4, linetype = "dotted") +
+  geom_vline(xintercept = 30, linetype = "dotted") +
+  scale_color_manual(values = c("darkred", "darkred", "darkred",
+                                "springgreen3", "springgreen3", "springgreen3")) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotdash",
+                                   "solid", "dashed", "dotdash")) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    axis.text.y = element_text(size = 9),
+    axis.title = element_text(size = 13),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+
+print(fig2_clean)
+```
+
+```{r, fig.width=8, fig.height=6}
+library(dplyr)
+library(ggplot2)
+library(plyr)  # to match original code
+
+# Standardize topic labels
+uk_data_clean$top_topic <- as.character(uk_data_clean$top_topic)
+uk_data_clean$top_topic[uk_data_clean$top_topic == "fabric of society"] <- "Fabric of society"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "social groups"] <- "Social groups"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "welfare and quality of life"] <- "Welfare and quality of life"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "external relations"] <- "External relations"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "freedom and democracy"] <- "Freedom and democracy"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "political system"] <- "Political system"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "economy"] <- "Economy"
+uk_data_clean$top_topic[uk_data_clean$top_topic == "no topic"] <- "No topic"
+
+# Filter out "No topic"
+filtered_data <- subset(uk_data_clean, top_topic != "No topic")
+
+# Calculate mean emotive rhetoric per topic
+ac <- function(x) {
+  m <- mean(x$emotive_score, na.rm = TRUE)
+  out <- m
+}
+
+result <- ddply(filtered_data, c("top_topic"), ac)
+colnames(result) <- c("top_topic", "emotive_rhetoric")
+
+# Set factor levels for ordered plotting
+result$top_topic <- factor(result$top_topic, levels = c(
+  "Economy", "Political system", "Freedom and democracy", 
+  "External relations", "Welfare and quality of life", 
+  "Social groups", "Fabric of society"
+))
+
+# Plot Figure 4
+ggplot(data = result, aes(x = top_topic, y = emotive_rhetoric)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ylab("Average Level of Emotive Rhetoric") +
+  xlab("") +
+  ggtitle("Average Level of Emotive Rhetoric by Topic(Extended Dictionary)") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(colour = "black", size = 11),
+    axis.text.y = element_text(colour = "black", size = 11),
+    axis.line = element_line(color = "black"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+```
+
+## Full replication workflow using provided dictionary
+
+```{r}
+emotive_dict <- read.csv("emotive_uk.csv", stringsAsFactors = FALSE)
+neutral_dict <- read.csv("neutral_uk.csv", stringsAsFactors = FALSE)
+
+emotive_words <- tolower(emotive_dict$word)
+neutral_words <- tolower(neutral_dict$word)
+```
+
+```{r}
+library(tokenizers)
+
+# Tokenize each speech
+speech_tokens_original <- tokenize_words(uk_data_clean$speech_clean)
+
+# Score each speech
+speech_scores_original <- sapply(speech_tokens_original, function(tokens) {
+  total <- length(tokens)
+  if (total == 0) return(NA)
+  
+  n_emotive <- sum(tokens %in% emotive_words)
+  n_neutral <- sum(tokens %in% neutral_words)
+  
+  score <- (n_emotive - n_neutral) / total
+  return(score)
+})
+
+```
+
+Create a new dataset for original dictionaries
+
+```{r}
+# Create a separate dataset for the original replication
+uk_data_original <- uk_data_clean %>%
+  select(id_speech, text, speech_clean, date, top_topic, everything()) %>%
+  mutate(emotive_rhetoric = speech_scores_original)
+```
+
+### Regression
+
+```{r}
+model_original <- lm(emotive_rhetoric ~ 
+                       government + 
+                       party + 
+                       prime_minister + 
+                       cabinet + 
+                       pm_questions + 
+                       queen_debate_day1 + 
+                       queen_debate_others + 
+                       m_questions + 
+                       u_questions + 
+                       other_debate + 
+                       top_topic,
+                     data = uk_data_original)
+
+summary(model_original)
+```
+
+-   Direction is consistent across both models
+
+-   Effect sizes are smaller in the model with our trained dictionary
+
+-   Stronger discrimination on government MPs
+
+**New model fits slightly better**, even though effect sizes are smaller.
+
+### Fig.2 Replication(provided code)
+
+```{r, fig.width=12, fig.height=6}
+library(ggplot2)
+library(dplyr)
+library(stringr)
+library(plyr)
+
+# STEP 1: Create the time variable
+uk_data_original$time <- NA
+uk_data_original$date <- as.Date(uk_data_original$date)  # make sure it's in Date format
+
+# Generate half-year time codes
+years <- 2001:2019
+half_years <- c("01", "07")
+time_labels <- unlist(lapply(years, function(y) paste0(substr(y, 3, 4), "/", c(1,2))))
+
+for (i in seq_along(years)) {
+  y <- years[i]
+  uk_data_original$time[uk_data_original$date >= as.Date(paste0(y, "-01-01")) &
+                         uk_data_original$date <= as.Date(paste0(y, "-06-30"))] <- paste0(substr(y, 3, 4), "/1")
+  uk_data_original$time[uk_data_original$date >= as.Date(paste0(y, "-07-01")) &
+                         uk_data_original$date <= as.Date(paste0(y, "-12-31"))] <- paste0(substr(y, 3, 4), "/2")
+}
+
+# STEP 2: Create the stage variable
+uk_data_original$stage <- 0
+uk_data_original$stage[uk_data_original$m_questions == 1] <- 1
+uk_data_original$stage[uk_data_original$u_questions == 1] <- 2
+uk_data_original$stage[uk_data_original$queen_debate_others == 1] <- 3
+uk_data_original$stage[uk_data_original$queen_debate_day1 == 1] <- 4
+uk_data_original$stage[uk_data_original$pm_questions == 1] <- 5
+
+# STEP 3: Compute means by time and stage
+calc_mean <- function(x){
+  mean_emotive <- mean(x$emotive_rhetoric, na.rm = TRUE)
+  cbind(mean_emotive)
+}
+
+result <- ddply(uk_data_original, c("time", "stage"), calc_mean)
+colnames(result) <- c("time", "stage", "emotive_rhetoric")
+
+# STEP 4: Add debate type labels
+result$type <- NA
+result$type[result$stage == 5] <- "PM's Question Time"
+result$type[result$stage == 4] <- "Queen's Speech Debate: Opening Day"
+result$type[result$stage == 3] <- "Queen's Speech Debate: Other Days"
+result$type[result$stage == 2] <- "Urgent Questions"
+result$type[result$stage == 1] <- "Other Question Time"
+result$type[result$stage == 0] <- "Other"
+
+# Factor for plotting order
+result$type <- factor(result$type, levels = c("PM's Question Time",
+                                              "Queen's Speech Debate: Opening Day",
+                                              "Queen's Speech Debate: Other Days",
+                                              "Urgent Questions",
+                                              "Other Question Time",
+                                              "Other"))
+
+# Drop first time bin (optional to match original)
+result <- subset(result, time != "01/1")
+
+# STEP 5: Plot
+ggplot(result, aes(x = time, y = emotive_rhetoric, group = type)) +
+  geom_line(aes(color = type, linetype = type), linewidth = 0.6) +
+  geom_point(color = "black", size = 1.2) +  # smaller black dots
+  xlab("Time (Half-Year)") +
+  ylab("Mean Emotive Rhetoric Score") +
+  ggtitle("Emotive Rhetoric by Type of Debate over Time") +
+  geom_vline(xintercept = 4, linetype = "dotted") +
+  geom_vline(xintercept = 30, linetype = "dotted") +
+  scale_color_manual(values = c("darkred", "darkred", "darkred", "springgreen3", "springgreen3", "springgreen3")) +
+  scale_linetype_manual(values = c("solid", "dashed", "dotdash", "solid", "dashed", "dotdash")) +
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.title = element_blank(),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 9),
+    axis.text.y = element_text(size = 9),
+    axis.title = element_text(size = 13),
+    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
+    legend.text = element_text(size = 11),
+    legend.position = "bottom"
+  )
+
+```
+
+## Topic Modeling
+
+The original paper's topic modeling approach here is: each topic was manually classified into one of seven topics: economy/political system/freedom and democracy/external relations/welfare and quality of life/social groups/fabric of society.(already pre-classified)
+
+These labels were used as features in regression models to predict emotive rhetoric scores. This allowed them to **control for topic variation** when assessing how much emotive rhetoric varies by debate type (e.g., PMQs vs. other debates). The classification itself was done outside of LDA --- it was either **human-coded or derived from prior work** with a labeled dataset​
+
+```{r, fig.width=8, fig.height=6}
+library(dplyr)
+library(ggplot2)
+library(plyr)  # to match original code
+
+# Standardize topic labels
+uk_data_original$top_topic <- as.character(uk_data_original$top_topic)
+uk_data_original$top_topic[uk_data_original$top_topic == "fabric of society"] <- "Fabric of society"
+uk_data_original$top_topic[uk_data_original$top_topic == "social groups"] <- "Social groups"
+uk_data_original$top_topic[uk_data_original$top_topic == "welfare and quality of life"] <- "Welfare and quality of life"
+uk_data_original$top_topic[uk_data_original$top_topic == "external relations"] <- "External relations"
+uk_data_original$top_topic[uk_data_original$top_topic == "freedom and democracy"] <- "Freedom and democracy"
+uk_data_original$top_topic[uk_data_original$top_topic == "political system"] <- "Political system"
+uk_data_original$top_topic[uk_data_original$top_topic == "economy"] <- "Economy"
+uk_data_original$top_topic[uk_data_original$top_topic == "no topic"] <- "No topic"
+
+# Filter out "No topic"
+filtered_data <- subset(uk_data_original, top_topic != "No topic")
+
+# Calculate mean emotive rhetoric per topic
+ac <- function(x) {
+  m <- mean(x$emotive_rhetoric, na.rm = TRUE)
+  out <- m
+}
+
+result <- ddply(filtered_data, c("top_topic"), ac)
+colnames(result) <- c("top_topic", "emotive_rhetoric")
+
+# Set factor levels for ordered plotting
+result$top_topic <- factor(result$top_topic, levels = c(
+  "Economy", "Political system", "Freedom and democracy", 
+  "External relations", "Welfare and quality of life", 
+  "Social groups", "Fabric of society"
+))
+
+# Plot Figure 4
+ggplot(data = result, aes(x = top_topic, y = emotive_rhetoric)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  ylab("Average Level of Emotive Rhetoric") +
+  xlab("") +
+  ggtitle("Average Level of Emotive Rhetoric by Topic (Original Dictionary)") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(colour = "black", size = 11),
+    axis.text.y = element_text(colour = "black", size = 11),
+    axis.line = element_line(color = "black"),
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5)
+  )
+```
+
+## 
