@@ -1,6 +1,7 @@
 <h1 align="center"> Playing to the Gallery: Emotive Rhetoric in Parliaments </h1>
 <h3 align="center"> A Replication Study </h3>  
 
+<br>
 
 <!-- Data Availability & Setup -->
 <h2 id="data"> Data Availability & Setup</h2>
@@ -18,6 +19,7 @@ This replication builds upon the original dataset from the *“Playing to the Ga
 
 > **Note:** The `uk_data_clean` file is the extended version of the original dataset that includes additional variables engineered during replication—such as tokenized speeches, cleaned text, emotion scores, and model predictions. Its larger size reflects these enhancements in vocabulary captured for training.
 
+<br>
 
 <!-- PREREQUISITES -->
 <h2 id="prerequisites">Prerequisites</h2>
@@ -28,7 +30,7 @@ This project is written in the R programming language and requires the following
 These can be installed using `install.packages()` or loaded via preferred package manager. Additional dependencies may be required for replicating the original paper’s Word2Vec embedding or advanced modeling.
 
 
-
+<br>
 
 
 
