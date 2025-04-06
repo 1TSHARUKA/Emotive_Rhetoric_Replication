@@ -19,3 +19,32 @@ This replication builds upon the original dataset from the *“Playing to the Ga
 > **Note:** The `uk_data_clean` file is the extended version of the original dataset that includes additional variables engineered during replication—such as tokenized speeches, cleaned text, emotion scores, and model predictions. Its larger size reflects these enhancements in vocabulary captured for training.
 
 
+<!-- PREREQUISITES -->
+<h2 id="prerequisites">Prerequisites</h2>
+
+This project is written in the R programming language and requires the following packages:<br>
+`tidyverse`, `dplyr`, `readr`, `tidyr`, `stringr`, `tidytext`, `tokenizers`, `ggplot2`, `gridExtra`,`scales`, `lubridate`, `quanteda`, `quanteda.sentiment`, `data.table`, `text2vec`, `wordVectors`
+
+These can be installed using `install.packages()` or loaded via preferred package manager. Additional dependencies may be required for replicating the original paper’s Word2Vec embedding or advanced modeling.
+
+
+
+
+
+
+<!-- CONTRIBUTORS -->
+<h2 id="contributors">Contributors</h2>
+
+<p>
+This replication study was conducted as part of the Replication Exercise 2 for 
+PPOL 6801 - Text as Data (Spring 2025) at 
+<a href="https://mccourt.georgetown.edu/">Georgetown University, McCourt School of Public Policy</a>.
+</p>
+
+We thank the original authors for making their data and code publicly available, and Professor Nejla Asimovic for guidance on this replication exercise.
+
+<ul>
+  <li><strong>Amber Ni</strong> - <a href="mailto:xn8@georgetown.edu">xn8@georgetown.edu</a></li>
+  <li><strong>Tian Tong</strong> - <a href="mailto:yt583@georgetown.edu">yt583@georgetown.edu</a></li>
+</ul>
+
