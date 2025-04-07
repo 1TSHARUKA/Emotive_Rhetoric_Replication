@@ -3,6 +3,28 @@
 
 <br>
 
+## Project Overview
+
+This repository contains the replication materials for the paper:
+
+OSNABRÜGGE M, HOBOLT SB, RODON T.\
+"Playing to the Gallery: Emotive Rhetoric in Parliaments. American Political Science Review."
+
+This project replicates key analyses from the original study, specifically:
+
+1. **Replication of Table 1**: Emotive and neutral speeches example.
+2. **Replication of Figure 2**: The development of emotive rhetoric by type of debate from 2001 to 2019.
+3. **Replication of Table 3**: Regression analysis of emotive rhetoric
+4. **Replication of Figure 4**: Average emotive rhetoric by topic
+5. **Extension**:
+
+## Replication summary
+
+### Replication 
+In this replication project, we reproduced key empirical results from the original study on emotive rhetoric in parliamentary speeches. First, we replicated Table 1, which presents examples of speeches with high and low levels of emotive rhetoric, illustrating how the scoring system captures variations in tone and sentiment. Second, we recreated Figure 2, which shows the development of emotive rhetoric over time by debate type from 2001 to 2019, confirming trends such as increased emotiveness during high-profile political debates. Third, we replicated Table 3, the regression analysis that quantifies the relationship between debate types and emotive rhetoric scores, finding consistent effect sizes and statistical significance with the original paper. Lastly, we replicated Figure 4, which highlights the average level of emotive rhetoric by topic, reaffirming that certain policy areas, such as social and moral issues, are more emotionally charged than others. Overall, the replication confirms the robustness of the original study’s findings and demonstrates the effectiveness of the emotiveness measure.
+
+### Extension
+
 <!-- Data Availability & Setup -->
 <h2 id="data"> Data Availability & Setup</h2>
 
