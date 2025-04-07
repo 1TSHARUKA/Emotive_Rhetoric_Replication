@@ -70,6 +70,42 @@ These can be installed using `install.packages()` or loaded via preferred packag
 
 <br>
 
+<!-- Repository Structure -->
+<h2 id="project-files">Repository Structure</h2>
+
+<p>
+This repository contains datasets, scripts, and output files for our replication study. 
+Our replication includes modifications and additional analysis, detailed below.
+</p>
+
+---
+
+<h3> Data</h3>
+
+<ul>
+  <li><code>emotive_expanded.csv</code> -  Expanded emotive word list derived from the NRC Emotion Lexicon and Word2Vec model </li>
+  <li><code>neutral_expanded.csv</code> - Expanded neutral word list using NRC-based seed words and embeddings </li>
+  <li><code>emotive_uk.csv</code> - Original paper's emotive word list derived from ANEW-based seeds and trained Word2Vec embeddings on UK parliamentary corpus, which has been provided and utlized in our replication </li>
+  <li><code>neutral_uk.csv</code> - Original paper's neutral word list trained using the same method above </li>
+</ul>
+
+---
+
+<h3> Scripts</h3>
+
+<ul>
+  <li><code>Replication.rmd</code> - Main analysis script that replicates the key figures and tables from the original paper and implements the dictionary-based extension using the NRC lexicon. This file contains code for preprocessing, modeling, scoring, and visualization. </li>
+</ul>
+
+---
+
+<h3> Outputs</h3>
+All tables and figures generated during this replication are saved in the <code>output</code> directory.  For comparison purposes, the corresponding original versions from the published article are also included and clearly labeled in the file names (e.g., original_dictionary and extended_dictionary etc.).
+
+The final presentation slides and written report are available in the <code>doc</code> folder.
+
+
+</ul>
 
 
 <!-- CONTRIBUTORS -->
