@@ -1,29 +1,42 @@
 <h1 align="center"> Playing to the Gallery: Emotive Rhetoric in Parliaments </h1>
-<h3 align="center"> A Replication Study </h3>  
+<h3 align="center"> A Replication Study with a Dictionary-Based Extension </h3>  
 
 <br>
 
-## Project Overview
+<!-- Project Introduction -->
+<h2 id="data"> Overview</h2>
 
-This repository contains the replication materials for the paper:
+This repository contains a partial replication and dictionary-based extension of the article:
+Osnabrügge, M., Hobolt, S. B., & Rodon, T. (2021), Playing to the Gallery: Emotive Rhetoric in Parliaments, *American Political Science Review*, 115(3), 885–899. 
+- The official publication can be found online at American Political Science Review:
+<a href="https://www.cambridge.org/core/journals/american-political-science-review/article/playing-to-the-gallery-emotive-rhetoric-in-parliaments/2A47C797136261391DA27F3A16F64886
+">
+      Original Paper
+    </a>
+- The replication materials are provided within the Harvard Dataverse Network, with direct access: <a href="https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/QDTLYV" target="_blank">
+      Harvard Dataverse
+    </a>
 
-OSNABRÜGGE M, HOBOLT SB, RODON T.\
-"Playing to the Gallery: Emotive Rhetoric in Parliaments. American Political Science Review."
 
-This project replicates key analyses from the original study, specifically:
-
-1. **Replication of Table 1**: Emotive and neutral speeches example.
-2. **Replication of Figure 2**: The development of emotive rhetoric by type of debate from 2001 to 2019.
-3. **Replication of Table 3**: Regression analysis of emotive rhetoric
-4. **Replication of Figure 4**: Average emotive rhetoric by topic
-5. **Extension**:
-
-## Replication summary
+The original paper examines how legislators strategically use emotive rhetoric in parliamentary speeches—particularly during high-profile debate settings such as Prime Minister's Questions (PMQs) and Queen’s Speech Debates. Using a dictionary-based approach, the authors construct emotion-labeled word embeddings trained on parliamentary corpora, starting from seed words drawn from the Affective Norms for English Words (ANEW) lexicon. Speeches are then scored by their emotive tone, and key hypotheses are tested through a combination of visualizations and regression analyses.
 
 ### Replication 
-In this replication project, we reproduced key empirical results from the original study on emotive rhetoric in parliamentary speeches. First, we replicated Table 1, which presents examples of speeches with high and low levels of emotive rhetoric, illustrating how the scoring system captures variations in tone and sentiment. Second, we recreated Figure 2, which shows the development of emotive rhetoric over time by debate type from 2001 to 2019, confirming trends such as increased emotiveness during high-profile political debates. Third, we replicated Table 3, the regression analysis that quantifies the relationship between debate types and emotive rhetoric scores, finding consistent effect sizes and statistical significance with the original paper. Lastly, we replicated Figure 4, which highlights the average level of emotive rhetoric by topic, reaffirming that certain policy areas, such as social and moral issues, are more emotionally charged than others. Overall, the replication confirms the robustness of the original study’s findings and demonstrates the effectiveness of the emotiveness measure.
 
-### Extension
+This replication reproduces key empirical results, including:
+- `Table 2`: Illustrative examples of emotive and neutral speeches using the original scoring approach
+- `Figure 2`: Temporal trends in emotive rhetoric by debate type (2001–2019), highlighting rhetorical peaks during high-profile debates
+- `Table 3`: Regression analyses linking institutional settings to variation in emotive tone
+- `Figure 4`: Topic-level differences in average emotive rhetoric across policy domains with greater intensity in socially and morally charged domains
+
+These results reinforce the study’s conclusion that emotive rhetoric is deployed strategically in parliamentary settings.
+
+
+In our extension, we construct a new emotive dictionary using the the NRC Emotion Lexicon developed by Saif Mohammad <a href= "https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm"> (NRC Association Lexicon Link) </a>, applying the same Word2Vec-based embedding method to the UK parliamentary corpus. We then compare the outputs and regression results of the original and extended dictionaries across all key components.
+
+Our findings show that dictionary choice significantly affects analytical outcomes—highlighting, for instance, higher emotive intensity in "Urgent Questions" and shifting topic-level rankings (e.g., elevated scores for “Freedom and Democracy”). These differences underscore how lexicon design influences interpretations of emotional language in political discourse. 
+> More detailed comparisons, interpretations, and visualizations can be found in the accompanying project report.
+
+<br>
 
 <!-- Data Availability & Setup -->
 <h2 id="data"> Data Availability & Setup</h2>
