@@ -1,7 +1,6 @@
 <h1 align="center"> Playing to the Gallery: Emotive Rhetoric in Parliaments </h1>
 <h3 align="center"> A Replication Study with a Dictionary-Based Extension </h3>  
 
-<br>
 
 <!-- Project Introduction -->
 <h2 id="data"> Overview</h2>
@@ -20,7 +19,11 @@ Osnabrügge, M., Hobolt, S. B., & Rodon, T. (2021), Playing to the Gallery: Emot
 
 The original paper examines how legislators strategically use emotive rhetoric in parliamentary speeches—particularly during high-profile debate settings such as Prime Minister's Questions (PMQs) and Queen’s Speech Debates. Using a dictionary-based approach, the authors construct emotion-labeled word embeddings trained on parliamentary corpora, starting from seed words drawn from the Affective Norms for English Words (ANEW) lexicon. Speeches are then scored by their emotive tone, and key hypotheses are tested through a combination of visualizations and regression analyses.
 
-### Replication 
+<br>
+
+
+<!-- Project Replication -->
+<h2 id="data"> Replication Summary</h2>
 
 This replication reproduces key empirical results, including:
 - `Table 2`: Illustrative examples of emotive and neutral speeches using the original scoring approach
@@ -31,7 +34,7 @@ This replication reproduces key empirical results, including:
 These results reinforce the study’s conclusion that emotive rhetoric is deployed strategically in parliamentary settings.
 
 
-In our extension, we construct a new emotive dictionary using the the NRC Emotion Lexicon developed by Saif Mohammad <a href= "https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm"> (NRC Association Lexicon Link) </a>, applying the same Word2Vec-based embedding method to the UK parliamentary corpus. We then compare the outputs and regression results of the original and extended dictionaries across all key components.
+In our **extension**, we construct a new emotive dictionary using the the NRC Emotion Lexicon developed by Saif Mohammad( <a href= "https://saifmohammad.com/WebPages/NRC-Emotion-Lexicon.htm"> NRC Association Lexicon Link </a>), applying the same Word2Vec-based embedding method to the UK parliamentary corpus. We then compare the outputs and regression results of the original and extended dictionaries across all key components.
 
 Our findings show that dictionary choice significantly affects analytical outcomes—highlighting, for instance, higher emotive intensity in "Urgent Questions" and shifting topic-level rankings (e.g., elevated scores for “Freedom and Democracy”). These differences underscore how lexicon design influences interpretations of emotional language in political discourse. 
 > More detailed comparisons, interpretations, and visualizations can be found in the accompanying project report.
