@@ -50,7 +50,7 @@ This replication builds upon the original dataset from the *“Playing to the Ga
       Harvard Dataverse
     </a>
   as specified by the authors.
-* Additionally, all files used in this replication—<code>uk_data</code>, the extended version <code>uk_data_clean</code>, and <code>corpus.txt</code> used for Word2Vec training—are hosted on     <a href="https://drive.google.com/drive/folders/1l8mttWYBo1k-GKExBtYCS9ogwWZ5ZTyF?dmr=1&ec=wgc-drive-hero-goto" target="_blank">
+* Additionally, all large corpus files used in this replication—<code>uk_data</code>, the cleaned and extended version <code>uk_data_clean</code>, and <code>corpus.txt</code> used for Word2Vec training—are hosted on     <a href="https://drive.google.com/drive/folders/1l8mttWYBo1k-GKExBtYCS9ogwWZ5ZTyF?dmr=1&ec=wgc-drive-hero-goto" target="_blank">
       Google Drive
     </a>
  for convenience. These include preprocessed text, learned embeddings, and model outputs.
@@ -76,12 +76,12 @@ These can be installed using `install.packages()` or loaded via preferred packag
 <h2 id="contributors">Contributors</h2>
 
 <p>
-This replication study was conducted as part of the Replication Exercise 2 for 
-PPOL 6801 - Text as Data (Spring 2025) at 
+This replication study was completed as part of the Replication Exercise 2 for 
+the course PPOL 6801 - Text as Data (Spring 2025) at 
 <a href="https://mccourt.georgetown.edu/">Georgetown University, McCourt School of Public Policy</a>.
 </p>
 
-We thank the original authors for making their data and code publicly available, and Professor Nejla Asimovic for guidance on this replication exercise.
+We gratefully acknowledge the original authors for publicly sharing their data and code, which made this replication possible. We also appreciate Professor Nejla Asimovic for her invaluable guidance and support throughout the project.
 
 <ul>
   <li><strong>Amber Ni</strong> - <a href="mailto:xn8@georgetown.edu">xn8@georgetown.edu</a></li>
