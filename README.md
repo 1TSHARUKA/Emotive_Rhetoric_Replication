@@ -94,15 +94,15 @@ Our replication includes modifications and additional analysis, detailed below.
 <h3> Scripts</h3>
 
 <ul>
-  <li><code>Replication.rmd</code> - Main analysis script that replicates the key figures and tables from the original paper and implements the dictionary-based extension using the NRC lexicon. This file contains code for preprocessing, modeling, scoring, and visualization. </li>
+  <li><code>Replication.rmd</code> - Main analysis script that replicates the key figures and tables from the original paper and implements the dictionary-based extension using the NRC lexicon. This file contains code for preprocessing, modeling, scoring, and visualization. A knitted HTML version of the output is also provided for reference. </li>
 </ul>
 
 ---
 
 <h3> Outputs</h3>
-All tables and figures generated during this replication are saved in the <code>output</code> directory.  For comparison purposes, the corresponding original versions from the published article are also included and clearly labeled in the file names (e.g., original_dictionary and extended_dictionary etc.).
+All tables and figures generated during this replication are saved in the <code>Output</code> directory. For comparison purposes, our generated figrues using both the original and extended dictionaries are saved with distinct file names (e.g., original_dictionary, extended_dictionary) to clearly indicate which version of the lexicon was used.
 
-The final presentation slides and written report are available in the <code>doc</code> folder.
+The final presentation slides and written report are available in the <code>Doc</code> folder.
 
 
 </ul>
